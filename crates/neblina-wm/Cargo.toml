@@ -8,7 +8,7 @@ description = "A Wang-Mendel model written for Neblina"
 readme = "README.md"
 
 [dependencies]
-neblina = { version = "0.0.1", path = "../neblina" }
+neblina = { version = "0.0.2", path = "../neblina" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
