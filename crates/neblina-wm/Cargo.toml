@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "A Wang-Mendel model written for Neblina"
+readme = "README.md"
 
 [dependencies]
 neblina = { version = "0.0.1", path = "../neblina" }
