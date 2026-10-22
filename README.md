@@ -22,9 +22,9 @@ Adicione os crates desejados ao seu `Cargo.toml`:
 
 ```toml
 [dependencies]
-neblina = { version = "0.2.0", features = ["polars"] }
-nablina-wm = "0.2.0"
-neblina-anfis = "0.2.0"
+neblina = { version = "0.0.1", features = ["polars"] }
+nablina-wm = "0.0.1"
+neblina-anfis = "0.0.1"
 
 ```
 
