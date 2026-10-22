@@ -5032,7 +5032,7 @@ dependencies = [
 
 [[package]]
 name = "neblina"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "plotters",
  "polars",
@@ -5045,7 +5045,7 @@ dependencies = [
 
 [[package]]
 name = "neblina-anfis"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "burn",
  "neblina",
@@ -5055,7 +5055,7 @@ dependencies = [
 
 [[package]]
 name = "neblina-wm"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "clap",
  "neblina",
