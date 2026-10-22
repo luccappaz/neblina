@@ -8,6 +8,6 @@ description = "A ANFIS model written for neblina"
 
 [dependencies]
 burn = {version = "0.22.0", features = ["flex"]}
-neblina = {version = "0.0.1", path = "../neblina" }
+neblina = { version = "0.0.2", path = "../neblina" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
