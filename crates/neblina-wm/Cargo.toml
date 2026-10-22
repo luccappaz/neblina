@@ -1,0 +1,15 @@
+[package]
+name = "neblina-wm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+neblina = { path = "../neblina" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+clap = { version = "4.0", features = ["derive"], optional = true }
+plotters.workspace = true
+polars.workspace = true
+tempfile.workspace = true

@@ -1,150 +1,163 @@
-# `wm_fuzzy`
+# Neblina 🌫️
 
-[![Crates.io](https://img.shields.io/crates/v/wm_fuzzy.svg)](https://crates.io/crates/wm_fuzzy)
-[![Docs.rs](https://img.shields.io/docsrs/wm_fuzzy)](https://docs.rs/wm_fuzzy)
-[![License](https://img.shields.io/badge/license-MIT)](#license)
-[![CI](https://github.com/luccappaz/wm_model_rust/actions/workflows/ci.yml/badge.svg)](https://github.com/luccappaz/wm_model_rust/actions/workflows/ci.yml)
-
-A high-performance Rust implementation of the **Wang-Mendel (WM) algorithm** for automated fuzzy rule generation, inference, and binary/continuous classification from numerical data.
+**Neblina** é uma suíte de alta performance em **Rust** para modelagem de **Lógica Fuzzy, Sistemas de Inferência e Redes Neuro-Fuzzy**, projetada com foco estrito em segurança de tipos, expressividade, arquitetura limpa e integração nativa com o ecossistema de ciência de dados.
 
 ---
 
-## Features
+## 📦 Arquitetura da Suíte
 
-* **Automated Rule Extraction:** Fast generation of fuzzy IF-THEN rules from numerical datasets via Cartesian partitioning.
-* **Algebraic T-Norms:** Configurable firing strength aggregation using **Product** or **Minimum** ($t$-norms).
-* **Robust Fallback Engine:** Out-of-distribution handling via continuous Euclidean distance mapping in the membership center space.
-* **Native Serialization:** Full JSON support for saving and loading learned rule bases and evaluation metrics (`serde`).
-* **Interactive CLI Prompt:** Terminal interface for inspecting fuzzy partitions, $[a, b, c]$ vertices, and querying rule activations.
-* **Evaluation & Diagnostics:** Computes Confusion Matrix, Accuracy, Precision, Recall, and F1-Score directly.
+A suíte é dividida em crates modulares para separar o núcleo matemático das estratégias de aprendizado e modelagem adaptativa:
+
+| Crate | Descrição | Principais Recursos |
+| --- | --- | --- |
+| **`neblina`** | Núcleo Base & Infraestrutura | Funções de pertinência (Triangular, Gaussiana), T-Norms (`Product`, `Minimum`), estratégias de particionamento dinâmico (`Linear`, `Custom`), adaptadores de dataset genéricos (`TabularDataset`, `Polars`), plotagem de MFs, métricas de avaliação e tratamento de erros robusto via `thiserror`. |
+| **`nablina-wm`** | Modelo de Wang-Mendel | Indução automática de regras fuzzy a partir de dados, suporte a **Caso 1** (consequentes linguísticos) e **Caso 2** (consequentes numéricos), defuzificação por média ponderada e busca por menor distância euclidiana. |
+| **`neblina-anfis`** | Modelo ANFIS | Redes neuro-fuzzy adaptativas baseadas em **Burn** (arquitetura Takagi-Sugeno de 5 camadas), otimização por gradiente descendente (Adam) sobre funções de pertinência gaussianas diferenciáveis, extração de regras em linguagem natural e persistência em JSON. |
 
 ---
 
-## Installation
+## 🚀 Instalação
 
-Add `wm_fuzzy` to your project's `Cargo.toml`:
+Adicione os crates desejados ao seu `Cargo.toml`:
 
 ```toml
 [dependencies]
-wm_fuzzy = "0.3.0"
-polars = "0.55.2" # Optional feature
+neblina = { version = "0.2.0", features = ["polars"] }
+nablina-wm = "0.2.0"
+neblina-anfis = "0.2.0"
+
 ```
 
 ---
 
-## Quickstart
+## 🛠️ Exemplos de Uso
+
+### 1. Configurando o Núcleo com o Prelude (`neblina`)
 
 ```rust
-use polars::prelude::*;
-use wm_fuzzy::{wm_model::WMModel, TNorm};
+use neblina::prelude::*;
+use neblina::model::base::FuzzyBaseModel;
+use neblina::model::traits::FuzzyBuilder;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Define model architecture using compact JSON
-    let json_config = r#"{
-        "kind": "triangular",
-        "features": {
-            "temperature": {
-                "granularity": 3,
-                "strategy": { "type": "linear", "min": 0.0, "max": 100.0 },
-                "labels": ["cold", "warm", "hot"]
-            },
-            "humidity": {
-                "strategy": { "type": "custom", "knots": [0.0, 50.0, 100.0] }
-            }
-        }
-    }"#;
+fn main() -> Result<(), ModelError> {
+    let mut model = FuzzyBaseModel::new();
 
-    // 2. Parse configuration and build membership functions in one call
-    let mut model = WMModel::from_json(json_config)?;
+    model.set_kind(MFKind::Triangular)?
+         .add_linear_strategy("x1", 0.0, 100.0)?
+         .add_custom_strategy("x2", vec![0.0, 25.0, 75.0, 100.0])?;
 
-    // 3. Load dataset using Polars
-    let x_train = df![
-        "temperature" => &[15.0, 50.0, 85.0],
-        "humidity" => &[20.0, 50.0, 80.0],
-    ]?;
-    let y_train = Series::new("target".into(), &[0.1, 0.5, 0.9]);
+    model.build_inputs()?;
 
-    // 4. Train model with the Wang-Mendel rule generation algorithm
-    let rules = model.generate_rules(&x_train, &y_train, None, TNorm::Product, 0.01, 0.1)?;
-    println!("Generated {} fuzzy rules", rules.len());
-
-    // 5. Run batch prediction on new data
-    let x_test = df![
-        "temperature" => &[20.0, 80.0],
-        "humidity" => &[30.0, 75.0],
-    ]?;
-
-    let (predictions, binary_predictions) = 
-        model.predict(&x_test, None, Some(0.5), 0.0, TNorm::Product)?;
-
-    println!("Continuous predictions: {:?}", predictions);
+    println!("Suíte Neblina configurada com sucesso!");
     Ok(())
 }
+
 ```
 
----
-
-## Mathematical Formulation
-
-### 1. Triangular Membership Functions
-For parameters $[a, b, c]$:
-
-$$\mu(x) = \begin{cases} 
-0 & x \le a \text{ or } x \ge c \\
-\frac{x - a}{b - a} & a < x \le b \\
-\frac{c - x}{c - b} & b < x < c 
-\end{cases}$$
-
-### 2. Rule Firing Strength ($t$-norm)
-$$\alpha_k(x) = \prod_{i=1}^{n} \mu_{A_i^k}(x_i) \quad \text{or} \quad \min_{i=1 \dots n} \mu_{A_i^k}(x_i)$$
-
-### 3. Defuzzification (Weighted Average)
-$$\hat{y} = \frac{\sum_{k=1}^{R} \alpha_k \cdot \bar{y}_k}{\sum_{k=1}^{R} \alpha_k}$$
-
----
-
-## CLI & Interactive Exploration
-
-To launch the built-in interactive inference prompt:
+### 2. Indução e Inferência por Wang-Mendel (`nablina-wm`)
 
 ```rust
-let activated_rules = model.prompt_infer(TNorm::Product)?;
+use neblina::prelude::*;
+use neblina::types::HashDataset;
+use nablina_wm::wm::WMModel;
+use std::collections::HashMap;
+
+fn main() -> Result<(), ModelError> {
+    let mut model = WMModel::new();
+
+    model.set_kind(MFKind::Triangular)?
+         .add_granularity("x1", 3)?
+         .add_linear_strategy("x1", 0.0, 10.0)?;
+
+    model.build()?;
+
+    let mut x_train: HashDataset = Vec::new();
+    let mut row1 = HashMap::new();
+    row1.insert("x1".to_string(), 2.0);
+    x_train.push(row1);
+
+    let mut row2 = HashMap::new();
+    row2.insert("x1".to_string(), 8.0);
+    x_train.push(row2);
+
+    let y_train = vec![10.0, 90.0];
+
+    model.generate_rules(&x_train, &y_train, None, TNorm::Product, 0.0, 0.0)?;
+
+    let mut sample = HashMap::new();
+    sample.insert("x1".to_string(), 5.0);
+    let (y_pred, _activated_rules) = model.infer(&sample, TNorm::Product);
+
+    println!("Valor inferido (y): {:?}", y_pred);
+    Ok(())
+}
+
 ```
 
-```text
-==================================================
-                INPUT INFERENCE                   
-==================================================
+### 3. Treinamento de Redes Neuro-Fuzzy (`neblina-anfis`)
 
-👉 Enter the value for the attribute "temperature": 22.5
+```rust
+use neblina::prelude::*;
+use neblina::types::HashDataset;
+use neblina_anfis::AnfisModel;
+use burn::backend::Autodiff;
+use burn::backend::ndarray::NdArray;
+use std::collections::HashMap;
 
-👉 Enter the value for the attribute "humidity": 45.0
+fn main() -> Result<(), ModelError> {
+    type MyBackend = Autodiff<NdArray<f32>>;
+    let device = Default::default();
+
+    let mut model = AnfisModel::<MyBackend>::new(device);
+
+    model.set_kind("gaussian")?
+         .add_linear_strategy("x1", 0.0, 10.0)?;
+
+    model.with_epochs(50)
+         .with_learning_rate(0.01);
+
+    model.build()?;
+
+    let mut x_train: HashDataset = Vec::new();
+    let mut row1 = HashMap::new();
+    row1.insert("x1".to_string(), 2.0);
+    x_train.push(row1);
+
+    let mut row2 = HashMap::new();
+    row2.insert("x1".to_string(), 8.0);
+    x_train.push(row2);
+
+    let y_train = vec![5.0, 25.0];
+
+    model.train(&x_train, &y_train, &ModelConfig {
+        kind: MFKind::Gaussian,
+        features: HashMap::new(),
+        target: None,
+    })?;
+
+    let rules = model.extract_rules()?;
+    for rule in rules {
+        println!("Regra extraída: {}", rule.text_representation);
+    }
+
+    Ok(())
+}
+
 ```
 
 ---
 
-## Development & Testing
+## 🧪 Testes
+
+Execute a suíte completa de testes unitários:
 
 ```bash
-# Run unit and integration tests
-cargo test --all-targets --all-features
+cargo test --all-features
 
-# Run linter checks
-cargo clippy --all-targets --all-features -- -D warnings
-
-# Build documentation locally
-cargo doc --no-deps --open
-
-# Run the demo example
-cargo run --example demo
 ```
 
 ---
 
-## Demo
+## 📄 Licença
 
-![CLI Demo](assets/demo.gif)
-
-## License
-
-* MIT license [LICENSE]
+Distribuído sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
