@@ -3,6 +3,8 @@ name = "neblina-anfis"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+description = "A ANFIS model written for neblina"
 
 [dependencies]
 burn = {version = "0.22.0", features = ["flex"]}
